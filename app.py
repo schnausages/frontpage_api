@@ -1,9 +1,9 @@
-from flask import Flask, request, jsonify, render_template, redirect, url_for, make_response
+from flask import Flask
 from flask_cors import CORS
-from article_getter import frontpage
+import firebase_admin
+from firebase_admin import credentials, firestore
 import requests as req
 import requests_cache
-import re
 from datetime import datetime
 import time
 
@@ -12,41 +12,59 @@ CORS(app)
 date = datetime.today().strftime('%Y-%m-%d')
 
 #CACHE SETUP
-requests_cache.install_cache('frontpage_cache', expire_after=120)
+requests_cache.install_cache('frontpage_cache', expire_after=3600)
+requests_cache.remove_expired_responses()
+
+#FIRESTORE
+cred = credentials.Certificate("firebase-sdk.json")
+firebase_admin.initialize_app(cred)
+db = firestore.client()
+
+def frontpage():
+    frontpage_articles = {}
+    frontpage_articles_list = []
+    article_ref = db.collection('articles')
+    ordered_ref = article_ref.order_by(u'added',direction=firestore.Query.DESCENDING)
+    docs = ordered_ref.stream()
+    frontpage_articles['articles'] = frontpage_articles_list
+    for i in docs:
+        frontpage_articles_list.append(i.to_dict())
+    frontpage_articles['articles'] = frontpage_articles_list
+    return frontpage_articles
 
 @app.route('/', methods=['GET'])
 def home():
     return 'frontpagenews'
 
-@app.route('/api/frontpage', methods=['GET'])
+@app.route('/api/frontpage',methods=['GET'])
 def get_frontpage():
-    return frontpage
+    return frontpage()
 
-@app.route('/api/newslab',methods=['GET'])
-def get_newslab():
-    full_dict = {}
-    newslab_dict = {}
-    articles_list = []
-    articles = frontpage['articles']
-    for i in articles:
-        if i['outlet'] in newslab_dict:
-            newslab_dict[i['outlet']]['biasIndexList'].append(i['biasIndex'])
-        else:
-            newslab_dict[i['outlet']] = {'outlet':i['outlet'],'iconImage':i['iconImage'],'biasIndexList':[i['biasIndex']]}
-    articles_list.append(newslab_dict)
-    full_dict['response'] = list(newslab_dict.values())
-    return full_dict
+# @app.route('/api/newslab',methods=['GET'])
+# def get_newslab():
+    # full_dict = {}
+    # newslab_dict = {}
+    # articles_list = []
+    # articles = frontpage_outlet_data['articles']
+    # for i in articles:
+    #     if i['outlet'] in newslab_dict:
+    #         newslab_dict[i['outlet']]['biasIndexList'].append(i['biasIndex'])
+    #     else:
+    #         newslab_dict[i['outlet']] = {'outlet':i['outlet'],'iconImage':i['iconImage'],'biasIndexList':[i['biasIndex']]}
+    # articles_list.append(newslab_dict)
+    # full_dict['response'] = list(newslab_dict.values())
+    # return full_dict
 
-@app.route('/api/newslab/outletimages', methods=['GET'])
-def get_news_lab_outlet_images():
-    articles = frontpage['articles']
-    icon_dict = {}
-    for i in articles:
-      if i['outlet'] in icon_dict:
-        pass
-      else:
-        icon_dict[i['outlet']] = [i['iconImage']]
-    return icon_dict
+# @app.route('/api/newslab/outletimages', methods=['GET'])
+# def get_news_lab_outlet_images():
+#     articles = frontpage_outlet_data['articles']
+#     icon_dict = {}
+#     for i in articles:
+#       if i['outlet'] in icon_dict:
+#         pass
+#       else:
+#         icon_dict[i['outlet']] = [i['iconImage']]
+#     return icon_dict
 
 @app.route('/newsroom/trending', methods=['GET'])
 def send_trending_news():
@@ -91,4 +109,4 @@ def send_popculture_news():
     return popculture_news
 
 if __name__ == "__main__":
-    app.run(debug = True)
+    app.run(debug = False)
