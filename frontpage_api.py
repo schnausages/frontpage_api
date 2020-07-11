@@ -7,16 +7,21 @@ import requests_cache
 from datetime import datetime
 import time
 
+
 app = Flask(__name__)
 CORS(app)
-date = datetime.today().strftime('%Y-%m-%d')
 
 #CACHE SETUP
+date = datetime.today().strftime('%Y-%m-%d')
 requests_cache.install_cache('frontpage_cache', expire_after=3600)
 requests_cache.remove_expired_responses()
 
-#FIRESTORE
-cred = credentials.Certificate("firebase-sdk.json")
+#FIREBASE JSON
+THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
+my_file = os.path.join(THIS_FOLDER, 'firebase-sdk.json')
+
+#FIRESTORE INIT
+cred = credentials.Certificate(my_file)
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
@@ -31,10 +36,6 @@ def frontpage():
         frontpage_articles_list.append(i.to_dict())
     frontpage_articles['articles'] = frontpage_articles_list
     return frontpage_articles
-
-@app.route('/', methods=['GET'])
-def home():
-    return 'frontpagenews'
 
 @app.route('/api/frontpage',methods=['GET'])
 def get_frontpage():
