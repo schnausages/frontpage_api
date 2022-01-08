@@ -5,7 +5,14 @@ from firebase_admin import credentials, firestore
 import requests as req
 import requests_cache
 from datetime import datetime
+from newspaper import Article, Config, fulltext
+from datetime import datetime, timedelta
+from textblob import TextBlob
+import json
+import tweepy
+import configparser
 import time
+import os
 
 
 app = Flask(__name__)
@@ -25,6 +32,17 @@ cred = credentials.Certificate(my_file)
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
+#NEWSPAPER CONFIG HEADERS
+newspaperConfig = Config()
+headers = {
+    "User-Agent": "Mozilla",
+}
+newspaperConfig.headers = headers
+newspaperConfig.request_timeout = 10
+
+config = configparser.ConfigParser()
+config.read('config.ini')
+
 def frontpage():
     frontpage_articles = {}
     frontpage_articles_list = []
@@ -40,6 +58,51 @@ def frontpage():
 @app.route('/api/frontpage',methods=['GET'])
 def get_frontpage():
     return frontpage()
+
+#admin dashboard article add
+@app.route('/adminadd/<path:a>', methods=['GET'])
+def admin_add_article(a):
+    b = str(a)
+    newsdata = json.loads(b)
+    articleDict = {"topic":newsdata["topic"],"articles":[]}
+    for eachUrl in newsdata['urls']:
+    # if 'twitter.com' in eachUrl:
+        # read config
+        api_key = config['twitter']['api_key']
+        api_key_secret = config['twitter']['api_key_secret']
+        access_token = config['twitter']['access_token']
+        access_token_secret = config['twitter']['access_token_secret']
+
+        #auth app
+        auth = tweepy.OAuthHandler(api_key,api_key_secret)
+        auth.set_access_token(access_token,access_token_secret)
+        api = tweepy.API(auth)
+
+        #enter twitter URL here
+        full_url = str(eachUrl)
+
+        keyword = 'status/'
+        after_keyword = full_url.partition(keyword)
+        tweet_id = after_keyword[2]
+        tweet_response = api.get_status(tweet_id,tweet_mode = "extended")
+        articleDict['articles'].append(tweet_response.full_text)
+        # #tweet sent analysis
+        tweet_text = tweet_response.full_text
+        tweet_blob = TextBlob(tweet_text)
+        articleDict['articles'].append(tweet_blob.sentiment.subjectivity)
+
+    return articleDict
+    #     else:
+    #         #run newspaper article analysis
+    #         article = Article('https://'+eachUrl, config=config)
+    #         article.download()
+    #         article.parse()
+    #         articleBody = article.text
+    #         articleBlob = TextBlob(articleBody)
+    #         biasIndex = articleBlob.sentiment.subjectivity * 1000
+    #         articleDict["articles"].append({"url":eachUrl,"biasScore":biasIndex,"outet":"NEWSOUTLET"})
+    # db.collection('articles').document(u'another').set(articleDict)
+   # return articleDict
 
 # @app.route('/api/newslab',methods=['GET'])
 # def get_newslab():
@@ -108,6 +171,23 @@ def send_popculture_news():
     popculture_response = req.get('http://newsapi.org/v2/top-headlines?category=entertainment&country=us&pageSize=10&apiKey=8e5ad43b589749e8a7c76bbb04ec8ed6')
     popculture_news = popculture_response.json()
     return popculture_news
+
+#TESTING SENTIMENT
+
+@app.route('/feels/<posts>', methods=['GET'])
+def send_feels(posts=None):
+    blob = TextBlob(posts)
+    feels = blob.sentiment.polarity
+    if feels > 0.5:
+        return {'mood':'happy','description':'You are among the happiest users on here!'}
+    elif feels > 0.38:
+        return {'mood':'content','description':'You seem pretty content! Definitely happier than most.'}
+    elif feels >= 0.2:
+        return {'mood':'sad','description':'Seems like you could be a lot happier, but you arent angry.'}
+    elif feels < 0.2:
+        return {'mood':'angry','description':'Your posts indicate you are in a bad mood lately.'}
+    else:
+        return {'mood':'ERROR','description':'SORRY ERROR'}
 
 if __name__ == "__main__":
     app.run(debug = False)
