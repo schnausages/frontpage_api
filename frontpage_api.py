@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request
 from flask_cors import CORS
 import firebase_admin
 from firebase_admin import credentials, firestore
@@ -13,6 +13,7 @@ import tweepy
 import configparser
 import time
 import os
+import git
 
 
 app = Flask(__name__)
@@ -54,6 +55,14 @@ def frontpage():
         frontpage_articles_list.append(i.to_dict())
     frontpage_articles['articles'] = frontpage_articles_list
     return frontpage_articles
+
+@app.route('/update_server',methods=['POST'])
+def webhook():
+    if request.method == 'POST':
+        repo = git.Repo('https://github.com/schnausages/frontpage_api.git')
+        origin = repo.remotes.origin
+    origin.pull()
+    return 'Updated PA from repo',200
 
 @app.route('/api/frontpage',methods=['GET'])
 def get_frontpage():
