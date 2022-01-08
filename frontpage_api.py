@@ -61,8 +61,10 @@ def webhook():
     if request.method == 'POST':
         repo = git.Repo('https://github.com/schnausages/frontpage_api.git')
         origin = repo.remotes.origin
-    origin.pull()
-    return 'Updated branch from GitHub Repo',200
+        origin.pull()
+        return 'Updated branch from GitHub Repo',200
+    else:
+        return 'FAILED', 400
 
 @app.route('/api/frontpage',methods=['GET'])
 def get_frontpage():
