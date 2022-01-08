@@ -62,7 +62,7 @@ def webhook():
         repo = git.Repo('https://github.com/schnausages/frontpage_api.git')
         origin = repo.remotes.origin
     origin.pull()
-    return 'Updated PA from GitHub Repo',200
+    return 'Updated branch from GitHub Repo',200
 
 @app.route('/api/frontpage',methods=['GET'])
 def get_frontpage():
