@@ -200,5 +200,11 @@ def send_feels(posts=None):
     else:
         return {'mood':'ERROR','description':'SORRY ERROR'}
 
+
+@app.route('/purchase',methods=['GET','POST'])
+def purchase():
+    if request.method == 'POST':
+        return 200
+
 if __name__ == "__main__":
     app.run(debug = False)
