@@ -229,6 +229,8 @@ def send_feels(posts=None):
 def purchase():
     if request.method == 'POST':
         return 200
+    else:
+        return 400
 
 if __name__ == "__main__":
     app.run(debug=False)
